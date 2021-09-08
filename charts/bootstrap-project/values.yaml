@@ -1,0 +1,33 @@
+# Default values for bootstrap-project.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+bindings: &bindings
+  - name: dumy-sa
+    kind: ServiceAccount
+    role: edit
+    namespace: openshift-gitops
+
+namespaces:
+  - name: yaml-online-dev
+    bindings: *bindings
+    labels:
+      connect-to/yaml-online-dev: true
+    annotations:
+      openshift.io/node-selector: ''
+  - name: yaml-online-staging
+    bindings: *bindings
+    labels:
+      connect-to/yaml-online-dev: true
+    annotations:
+      openshift.io/node-selector: ''
+  - name: yaml-online-prod
+    bindings: *bindings
+    labels:
+      connect-to/yaml-online-dev: true
+    annotations:
+      openshift.io/node-selector: ''
+
+serviceaccounts: []
+  # - name: dumy-sa
+  #   namespace: example
