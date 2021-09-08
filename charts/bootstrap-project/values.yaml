@@ -3,12 +3,14 @@
 # Declare variables to be passed into your templates.
 
 bindings: &bindings
-  - name: dumy-sa
+  - name: openshift-gitops-argocd-application-controller
     kind: ServiceAccount
     role: edit
     namespace: openshift-gitops
 
 namespaces:
+  - name: openshift-serverless
+  - name: knative-serving
   - name: yaml-online-dev
     bindings: *bindings
     labels:

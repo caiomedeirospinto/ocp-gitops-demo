@@ -12,8 +12,6 @@ spec:
 apiVersion: v1
 kind: Namespace
 metadata:
-  annotations:
-    argocd.argoproj.io/sync-wave: "-1"
   labels:
     openshift.io/cluster-monitoring: "true"
   name: knative-serving
