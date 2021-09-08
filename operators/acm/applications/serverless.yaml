@@ -1,0 +1,53 @@
+---
+apiVersion: app.k8s.io/v1beta1
+kind: Application
+metadata:
+  name: serverless
+  namespace: openshift-serverless
+  annotations:
+    apps.open-cluster-management.io/deployables: ''
+spec:
+  componentKinds:
+    - group: apps.open-cluster-management.io
+      kind: Subscription
+  descriptor: {}
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - serverless
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: Subscription
+metadata:
+  name: serverless-subscription-1
+  namespace: openshift-serverless
+  annotations:
+    apps.open-cluster-management.io/deployables: 'openshift-serverless/serverless-subscription-1-operators-serverless-knative-serving-namespace,openshift-serverless/serverless-subscription-1-operators-serverless-openshift-serverless-skwoe-operatorgroup,openshift-serverless/serverless-subscription-1-operators-serverless-knative-serving-knativeserving,openshift-serverless/serverless-subscription-1-operators-serverless-serverless-operator-subscription,openshift-serverless/serverless-subscription-1-operators-serverless-openshift-serverless-namespace'
+    apps.open-cluster-management.io/git-branch: master
+    apps.open-cluster-management.io/git-path: operators/serverless
+    apps.open-cluster-management.io/reconcile-option: merge
+  labels:
+    app: serverless
+    app.kubernetes.io/part-of: serverless
+    apps.open-cluster-management.io/reconcile-rate: medium
+spec:
+  channel: ggithubcom-caiomedeirospinto-ocp-gitops-demo-ns/ggithubcom-caiomedeirospinto-ocp-gitops-demo
+  placement:
+    placementRef:
+      name: serverless-placement-1
+      kind: PlacementRule
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: serverless-placement-1
+  namespace: openshift-serverless
+  annotations: {}
+  labels:
+    app: serverless
+spec:
+  clusterSelector:
+    matchLabels:
+      local-cluster: 'true'

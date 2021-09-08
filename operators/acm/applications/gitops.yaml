@@ -1,0 +1,53 @@
+---
+apiVersion: app.k8s.io/v1beta1
+kind: Application
+metadata:
+  name: gitops
+  namespace: openshift-operators
+  annotations:
+    apps.open-cluster-management.io/deployables: ''
+spec:
+  componentKinds:
+    - group: apps.open-cluster-management.io
+      kind: Subscription
+  descriptor: {}
+  selector:
+    matchExpressions:
+      - key: app
+        operator: In
+        values:
+          - gitops
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: Subscription
+metadata:
+  name: gitops-subscription-1
+  namespace: openshift-operators
+  annotations:
+    apps.open-cluster-management.io/deployables: 'openshift-operators/gitops-subscription-1-operators-gitops-openshift-gitops-operator-subscription,openshift-operators/gitops-subscription-1-operators-gitops-openshift-gitops-namespace,openshift-operators/gitops-subscription-1-operators-gitops-cluster-gitopsservice'
+    apps.open-cluster-management.io/git-branch: master
+    apps.open-cluster-management.io/git-path: operators/gitops
+    apps.open-cluster-management.io/reconcile-option: merge
+  labels:
+    app: gitops
+    app.kubernetes.io/part-of: gitops
+    apps.open-cluster-management.io/reconcile-rate: medium
+spec:
+  channel: ggithubcom-caiomedeirospinto-ocp-gitops-demo-ns/ggithubcom-caiomedeirospinto-ocp-gitops-demo
+  placement:
+    placementRef:
+      name: gitops-placement-1
+      kind: PlacementRule
+---
+apiVersion: apps.open-cluster-management.io/v1
+kind: PlacementRule
+metadata:
+  name: gitops-placement-1
+  namespace: openshift-operators
+  annotations: {}
+  labels:
+    app: gitops
+spec:
+  clusterSelector:
+    matchLabels:
+      local-cluster: 'true'
