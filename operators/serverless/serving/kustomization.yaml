@@ -2,4 +2,5 @@ namespace: knative-serving
 
 resources:
 - ../base
+# - namespace.yaml
 - serving.yaml
