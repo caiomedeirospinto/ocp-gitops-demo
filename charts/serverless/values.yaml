@@ -1,0 +1,93 @@
+# Default values for serverless.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+teamName: product-team
+
+# Cantidad mínima de replicas de este despliegue
+# Valor por defecto: 0
+# minScale: 0
+
+# Variables de entorno de despliegue por ambiente.
+envs: []
+  # - name: DB_USER
+  #   value: username
+  #   kind: secret
+  # - name: DB_PASS
+  #   value: password
+  #   kind: secret
+
+# Datos del runtime del despliegue.
+runtime:
+  name: quarkus
+  version: "21"
+
+# Versión del código fuente a desplegar
+repository:
+  url: https://github.com/caiomedeirospinto/yaml-ms-online-session.git
+
+# Nombre del componente a desplegar. Si no se configura toma por defecto el nombre
+# del Chart: serverless
+# nameOverride: ""
+
+# Nombre de la aplicación o grupo de aplicaciones al cual este despliegue pertenece.
+# Si no se configura toma por defecto el nombre del Chart: serverless
+# partOf: ""
+
+# Datos de exposición de despliegue.
+servicePort: 8080
+
+# True por defecto hace referencia a que se puede consumir desde fuera del cluster,
+# Al ingresar false, el trafico externo es bloqueado.
+exposed: true
+
+# Configuración de Healthcheck Readiness del despliegue.
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: 0
+  initialDelaySeconds: 3
+  periodSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+  timeoutSeconds: 1
+
+# Configuración de Healthcheck Liveness del despliegue.
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 0
+  initialDelaySeconds: 3
+  periodSeconds: 3
+
+# Configuración de recursos destinados al despliegue.
+resources: {}
+  # limits:
+  #   cpu: 150m
+  #   memory: 300Mi
+  # requests:
+  #   cpu: 50m
+  #   memory: 100Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Variables secretas de tu despliegue
+secrets: {}
+  # username: test
+  # password: test123
+
+# Variables no secretas de tu despliegue
+configurationManager: {}
+  # application.properties: |
+  #     database.username=${DB_USER}
+  #     database.password=${DB_PASS}
+
+# Puntos de montaje para achivos de configuración, permite hacerlo desde Secrets o ConfigMaps
+mounts: []
+  # - name: application-properties
+  #   mountPath: /config/application-properties
+  #   kind: configmap

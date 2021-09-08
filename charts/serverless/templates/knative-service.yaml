@@ -1,0 +1,80 @@
+---
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+    app.openshift.io/vcs-uri: {{ .Values.repository.url }}
+  name: {{ include "serverless.name" . }}
+  labels:
+    {{- include "serverless.labels" . | nindent 4 }}
+    {{- if not .Values.exposed }}
+    networking.knative.dev/visibility: cluster-local
+    {{- end }}
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/minScale: {{ default 0 .Values.minScale | quote }}
+    spec:
+      containerConcurrency: {{ default 0 .Values.minScale }}
+      {{- if .Values.mounts }}
+      volumes:
+        {{- range $mount := .Values.mounts }}
+        - name: {{ $mount.name }}
+          {{- if eq "secret" $mount.kind }}
+          secret:
+            secretName: {{ include "serverless.name" $ }}
+          {{- else if eq "configmap" $mount.kind }}
+          configMap:
+            name: {{ include "serverless.name" $ }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - image: image-registry.openshift-image-registry.svc:5000/{{ .Release.Namespace }}/{{ include "serverless.name" . }}:latest
+          name: {{ include "serverless.name" . }}
+          {{- with .Values.envs }}
+          env:
+            {{- range $env := . }}
+            - name: {{ $env.name }}
+            {{- if eq "secret" $env.kind }}
+              valueFrom:
+                secretKeyRef:
+                  key: {{ $env.value }}
+                  name: {{ include "serverless.name" $ }}
+            {{- else if eq "configmap" $env.kind }}
+              valueFrom:
+                configMapKeyRef:
+                  key: {{ $env.value }}
+                  name: {{ include "serverless.name" $ }}
+            {{- else }}
+              value: {{ $env.value }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+          ports:
+            - containerPort: {{ .Values.servicePort }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.mounts }}
+          volumeMounts:
+            {{- range $mount := .Values.mounts }}
+            - name: {{ $mount.name }}
+              mountPath: {{ $mount.mountPath }}
+            {{- end }}
+          {{- end }}
+      timeoutSeconds: 300
+  traffic: []
+status: {}
