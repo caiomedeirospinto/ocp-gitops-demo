@@ -32,3 +32,21 @@ applications:
         kind: Route
         jsonPointers:
           - /status/ingress
+  # Tekton
+  - name: tekton
+    enabled: true
+    destination: openshift-operators
+    source: https://github.com/rht-labs/refactored-adventure
+    source_path: tekton/base
+    source_ref: master
+    sync_policy: *sync_policy_true
+    no_helm: true
+  # Serverless
+  - name: serverless
+    enabled: true
+    destination: openshift-operators
+    source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
+    source_path: operators/serverless/serving
+    source_ref: master
+    sync_policy: *sync_policy_true
+    no_helm: true
