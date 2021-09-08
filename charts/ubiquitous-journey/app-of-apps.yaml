@@ -30,7 +30,7 @@ applications:
     sync_policy: *sync_policy_true
   - name: applications
     destination: openshift-gitops
-    enabled: false
+    enabled: true
     source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
     source_path: charts/argo-appset
     source_ref: master

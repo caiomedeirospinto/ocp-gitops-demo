@@ -21,5 +21,5 @@ helm.sh/chart: {{ include "apps.chart" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
-app.kubernetes.io/managed-by: {{ default platform-team .Values.platformTeamName }}
+app.kubernetes.io/managed-by: {{ default "platform-team" .Values.platformTeamName }}
 {{- end }}

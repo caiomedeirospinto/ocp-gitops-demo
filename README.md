@@ -135,7 +135,13 @@ This repo contains all files needed to execute Caio's GitOps demo over Openshift
     helm template -f charts/ubiquitous-journey/app-of-apps.yaml charts/ubiquitous-journey/ | oc apply -n openshift-gitops -f -
     ```
 
-9. Login to ArgoCD and check if whole infra as code was applied:
+9. Execute pipeline that deploys charts:
+
+    ```bash
+    oc apply -n nexus -f .iac/templates/first-run.yaml
+    ```
+
+10. Login to ArgoCD and check if whole infra as code was applied:
 
     The ArgoCD user `admin` password is:
 
@@ -148,5 +154,3 @@ This repo contains all files needed to execute Caio's GitOps demo over Openshift
     ```bash
     oc get route openshift-gitops-server -n openshift-gitops -o go-template='https://{{ .spec.host }}'
     ```
-
-    
