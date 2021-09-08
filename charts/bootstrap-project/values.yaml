@@ -10,7 +10,9 @@ bindings: &bindings
 
 namespaces:
   - name: openshift-serverless
+    bindings: *bindings
   - name: knative-serving
+    bindings: *bindings
   - name: nexus
     bindings: *bindings
   - name: yaml-online-dev

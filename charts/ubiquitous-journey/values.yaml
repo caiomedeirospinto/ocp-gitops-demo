@@ -44,9 +44,9 @@ applications:
   # Serverless
   - name: serverless
     enabled: true
-    destination: openshift-operators
+    destination: oopenshift-serverless
     source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
-    source_path: operators/serverless/serving
+    source_path: operators/serverless/base
     source_ref: master
     sync_policy: *sync_policy_true
     no_helm: true
