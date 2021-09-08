@@ -1,0 +1,11 @@
+# Default values for argo-project.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Proyectos ArgoCD para segmentar componentes en ArgoCD
+projects:
+  - name: product-team
+    enabled: true
+    description: "The Product Team deployments"
+    repos:
+      - '*'
