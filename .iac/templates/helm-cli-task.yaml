@@ -6,6 +6,8 @@ metadata:
   labels:
     app.kubernetes.io/version: '0.2'
     operator.tekton.dev/provider-type: caiomedeirospinto
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   description: >-
     This task execute a helm cli command.

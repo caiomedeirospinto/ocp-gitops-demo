@@ -3,6 +3,8 @@ apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: {{ .Chart.Name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
 spec:
   params:
     - default: master

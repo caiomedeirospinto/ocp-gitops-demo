@@ -1,7 +1,9 @@
 apiVersion: tekton.dev/v1beta1
 kind: PipelineRun
 metadata:
-  name: helm-chart-pipeline-rx8mcv
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  name: helm-chart-pipeline
   namespace: nexus
 spec:
   params:
