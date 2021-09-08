@@ -1,0 +1,37 @@
+##############
+# 🐙 Argo Sync Policy
+#############
+sync_policy_true: &sync_policy_true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - Validate=true
+
+##############
+# 🛎 Argo App of Apps. Points to a repo which contains some helm stuff
+#############
+
+applications:
+  - name: teams
+    destination: openshift-gitops
+    enabled: true
+    source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
+    source_path: charts/argo-project
+    source_ref: master
+    sync_policy: *sync_policy_true
+  - name: applications
+    destination: openshift-gitops
+    enabled: true
+    source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
+    source_path: charts/argo-appset
+    source_ref: master
+    sync_policy: *sync_policy_true
+  - name: charts-deploy
+    destination: nexus
+    enabled: true
+    source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
+    source_path: .iac/
+    source_ref: master
+    sync_policy_automated: false

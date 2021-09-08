@@ -1,0 +1,53 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: nexus-publish-package
+  labels:
+    app.kubernetes.io/version: '0.2'
+    operator.tekton.dev/provider-type: caiomedeirospinto
+spec:
+  description: >-
+    This task publish a package in a nexus repository.
+  params:
+    - description: Path into workspace where the package to publish is located
+      name: PACKAGE_PATH
+      type: string
+    - description: The Nexus repo URL
+      name: NEXUS_REPO_URL
+      type: string
+    - description: Secret name with Nexus username and password
+      name: CREDENTIALS_SECRET
+      type: string
+    - default: >-
+        registry.access.redhat.com/ubi8/ubi:latest
+      description: Specify a specific image to run curl command
+      name: IMAGE
+      type: string
+  steps:
+    - image: $(params.IMAGE)
+      name: curl-publish
+      resources: {}
+      workingDir: $(workspaces.packages.path)
+      env:
+        - name: NEXUS_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: $(params.CREDENTIALS_SECRET)
+              key: username
+        - name: NEXUS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: $(params.CREDENTIALS_SECRET)
+              key: password
+      script: curl $@
+      args:
+        - -u
+        - $(NEXUS_USERNAME):$(NEXUS_PASSWORD)
+        - $(params.NEXUS_REPO_URL)
+        - --upload-file
+        - $(params.PACKAGE_PATH)
+        - -v
+  workspaces:
+    - description: A workspace that contains the package to publish.
+      name: packages

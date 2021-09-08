@@ -1,0 +1,34 @@
+##############
+# 🐙 Argo Sync Policy
+#############
+sync_policy_true: &sync_policy_true
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - Validate=true
+
+##############
+# 🛎 Argo App of Apps declaration
+#############
+# enabled true on an app is to tell helm to create an argo app cr for this item
+# Custom values override the default values in Helm Charts
+applications:
+  # Nexus
+  - name: nexus
+    enabled: true
+    source: https://redhat-cop.github.io/helm-charts
+    chart_name: sonatype-nexus
+    source_path: ""
+    source_ref: "0.0.5"
+    sync_policy: *sync_policy_true
+    destination: nexus
+    values:
+      persistence:
+        storageSize: 16Gi
+    ignore_differences:
+      - group: route.openshift.io
+        kind: Route
+        jsonPointers:
+          - /status/ingress

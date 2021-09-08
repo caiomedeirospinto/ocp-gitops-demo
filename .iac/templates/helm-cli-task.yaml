@@ -1,0 +1,37 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: helm-cli
+  labels:
+    app.kubernetes.io/version: '0.2'
+    operator.tekton.dev/provider-type: caiomedeirospinto
+spec:
+  description: >-
+    This task execute a helm cli command.
+  params:
+    - default: helm $@
+      description: The Helm CLI arguments to run
+      name: SCRIPT
+      type: string
+    - default:
+        - help
+      description: The Helm CLI arguments to run
+      name: ARGS
+      type: array
+    - default: >-
+        docker.io/lachlanevenson/k8s-helm@sha256:209347af41db7b07f6ff3f6d37589e36e941717c91a44044c0c2f076ccb55102
+      description: Specify a specific helm image
+      name: IMAGE
+      type: string
+  steps:
+    - image: $(params.IMAGE)
+      name: helm
+      resources: {}
+      workingDir: $(workspaces.source.path)
+      script: $(params.SCRIPT)
+      args:
+        - $(params.ARGS)
+  workspaces:
+    - description: A workspace that contains the fetched git repository.
+      name: source
