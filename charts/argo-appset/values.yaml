@@ -1,0 +1,65 @@
+# Default values for argo-appset.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+serverlessIgnoreDifferences: &serverlessIgnoreDifferences
+  - group: serving.knative.dev
+    kind: Service
+    jsonPointers:
+      - /metadata/annotations
+      - /spec/template/metadata/name
+      - /spec/template/metadata/creationTimestamp
+      - /spec/template/spec/containers/0/image
+      - /spec/traffic
+
+prodPrefix: &prodPrefix prod
+
+preEnvs: &preEnvs
+  - cluster: dev
+    url: 'https://kubernetes.default.svc'
+    values:
+      revision: develop
+  - cluster: staging
+    url: 'https://kubernetes.default.svc'
+    values:
+      revision: master
+
+apps:
+  - name: yaml-online
+    enabled: true
+    repository: https://github.com/caiomedeirospinto/yaml-online.git
+    deploy:
+      version: v1.0.0
+      prefix: *prodPrefix
+      preEnvs: *preEnvs
+      project: yaml-online
+    team: product-team
+    ignoreDifferences: *serverlessIgnoreDifferences
+  - name: yaml-ms-online-session
+    enabled: true
+    repository: https://github.com/caiomedeirospinto/yaml-ms-online-session.git
+    deploy:
+      version: v1.0.0
+      prefix: *prodPrefix
+      preEnvs: *preEnvs
+      project: yaml-online
+    team: product-team
+    ignoreDifferences: *serverlessIgnoreDifferences
+  - name: yaml-ws-online-session
+    enabled: true
+    repository: https://github.com/caiomedeirospinto/yaml-ws-online-session.git
+    deploy:
+      version: v1.0.0
+      prefix: *prodPrefix
+      preEnvs: *preEnvs
+      project: yaml-online
+    team: product-team
+  # - name: yaml-online-db
+  #   enabled: true
+  #   repository: https://github.com/caiomedeirospinto/yaml-online-db.git
+  #   deploy:
+  #     version: v1.0.0
+  #     prefix: *prodPrefix
+  #     preEnvs: *preEnvs
+  #     project: yaml-online
+  #   team: product-team

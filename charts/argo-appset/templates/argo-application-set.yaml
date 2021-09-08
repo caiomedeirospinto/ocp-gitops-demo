@@ -1,0 +1,59 @@
+{{- $root := . }}
+{{- range $app := .Values.apps }}
+{{- if $app.enabled }}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: {{ $app.name }}
+  labels:
+    app: {{ $app.name }}
+    app.kubernetes.io/name: {{ $app.name }}
+    app.kubernetes.io/component: {{ $app.name }}
+    {{- include "apps.labels" $ | nindent 4 }}
+spec:
+  generators:
+    - list:
+        elements:
+          {{- with $app.deploy.preEnvs }}
+          {{- toYaml . | nindent 10 }}
+          {{- end }}
+          - cluster: {{ default "" $app.deploy.prefix }}
+            url: {{ default "https://kubernetes.default.svc" $app.deploy.cluster | quote }}
+            values:
+              revision: {{ $app.deploy.version }}
+  syncPolicy:
+    skipPrune: false
+  template:
+    metadata:
+      labels:
+        app: {{ $app.name }}
+        app.kubernetes.io/name: {{ $app.name }}
+        app.kubernetes.io/component: {{ $app.name }}
+        {{- include "apps.labels" $ | nindent 8 }}
+      name: '{{ $app.name }}-{{ print "{{" }} cluster {{ print "}}" }}'
+    spec:
+      destination:
+        namespace: '{{ $app.deploy.project }}-{{ print "{{" }} cluster {{ print "}}" }}'
+        server: '{{ print "{{" }} url {{ print "}}" }}'
+      project: {{ $app.team }}
+      source:
+        path: {{ default ".iac/" $app.dir }}
+        repoURL: '{{ $app.repository }}'
+        targetRevision: '{{ print "{{" }} values.revision {{ print "}}" }}'
+      {{- with $app.ignoreDifferences }}
+      ignoreDifferences:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      syncPolicy:
+      {{- if $app.syncPolicy }}
+        {{- toYaml $app.syncPolicy | nindent 8 }}
+      {{- else }}
+        automated:
+          prune: true
+          selfHeal: false
+        syncOptions:
+        - Validate=true
+      {{- end }}
+{{- end }}
+{{- end }}
