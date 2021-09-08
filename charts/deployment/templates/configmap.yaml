@@ -1,0 +1,11 @@
+{{- if .Values.configurationManager }}
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: {{ include "deployment.fullname" . }}
+  labels:
+    {{- include "deployment.labels" . | nindent 4 }}
+data:
+{{- toYaml .Values.configurationManager | nindent 2 }}
+{{- end }}

@@ -1,0 +1,22 @@
+{{- if .Values.route.enabled -}}
+{{- $fullName := include "deployment.fullname" . -}}
+{{- $svcPort := .Values.servicePort -}}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "deployment.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.route.tls }}
+  tls:
+    {{- toYaml .Values.route.tls | nindent 4 }}
+  {{- end }}
+  path: {{ default "/" .Values.route.path }}
+  host: {{ default "" .Values.route.host | quote }}
+  to:
+    kind: Service
+    name: {{ $fullName }}
+  port:
+    targetPort: {{ $svcPort }}
+{{- end }}

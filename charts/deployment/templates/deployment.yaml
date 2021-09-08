@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "deployment.fullname" . }}
+  labels:
+    {{- include "deployment.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "deployment.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+    {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "deployment.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.mounts }}
+      volumes:
+        {{- range $mount := .Values.mounts }}
+        - name: {{ $mount.name }}
+          {{- if eq "secret" $mount.kind }}
+          secret:
+            secretName: {{ include "deployment.fullname" $ }}
+          {{- else if eq "configmap" $mount.kind }}
+          configMap:
+            name: {{ include "deployment.fullname" $ }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: {{ include "deployment.fullname" $ }}
+          {{- with .Values.envs }}
+          env:
+            {{- range $env := . }}
+            - name: {{ $env.name }}
+            {{- if eq "secret" $env.kind }}
+              valueFrom:
+                secretKeyRef:
+                  key: {{ $env.value }}
+                  name: {{ include "deployment.name" $ }}
+            {{- else if eq "configmap" $env.kind }}
+              valueFrom:
+                configMapKeyRef:
+                  key: {{ $env.value }}
+                  name: {{ include "deployment.name" $ }}
+            {{- else }}
+              value: {{ $env.value }}
+            {{- end }}
+            {{- end }}
+          {{- end }}
+          image: image-registry.openshift-image-registry.svc:5000/{{ .Release.Namespace }}/{{ include "deployment.name" . }}:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: {{ .Values.servicePort }}
+              protocol: TCP
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.mounts }}
+          volumeMounts:
+            {{- range $mount := .Values.mounts }}
+            - name: {{ $mount.name }}
+              mountPath: {{ $mount.mountPath }}
+            {{- end }}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

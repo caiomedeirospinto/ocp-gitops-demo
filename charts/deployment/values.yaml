@@ -1,0 +1,89 @@
+# Default values for deployment.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+nameOverride: ""
+fullnameOverride: ""
+
+# partOf: ""
+
+# Datos del runtime del despliegue.
+runtime:
+  name: quarkus
+  version: "21"
+
+# Versión del código fuente a desplegar
+repository:
+  url: https://github.com/caiomedeirospinto/yaml-ms-online-session.git
+
+# Variables de entorno de despliegue por ambiente.
+envs: []
+  # - name: DB_USER
+  #   value: username
+  #   kind: secret
+  # - name: DB_PASS
+  #   value: password
+  #   kind: secret
+
+podAnnotations: {}
+
+# Datos de exposición de despliegue.
+servicePort: 8080
+
+route:
+  enabled: true
+  path: /
+  hosts: '""'
+  tls: {}
+
+resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+# Configuración de Healthcheck Readiness del despliegue.
+readinessProbe:
+  httpGet:
+    path: /
+    port: 0
+  initialDelaySeconds: 3
+  periodSeconds: 3
+  failureThreshold: 3
+  successThreshold: 1
+  timeoutSeconds: 1
+
+# Configuración de Healthcheck Liveness del despliegue.
+livenessProbe:
+  httpGet:
+    path: /
+    port: 0
+  initialDelaySeconds: 3
+  periodSeconds: 3
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Variables secretas de tu despliegue
+secrets: {}
+  # username: test
+  # password: test123
+
+# Variables no secretas de tu despliegue
+configurationManager: {}
+  # application.properties: |
+  #     database.username=${DB_USER}
+  #     database.password=${DB_PASS}
+
+# Puntos de montaje para achivos de configuración, permite hacerlo desde Secrets o ConfigMaps
+mounts: []
+  # - name: application-properties
+  #   mountPath: /config/application-properties
+  #   kind: configmap
