@@ -5,7 +5,7 @@ metadata:
   name: {{ .Chart.Name }}
 spec:
   params:
-    - default: main
+    - default: master
       name: GIT_REVISION
       type: string
     - default: 'https://github.com/caiomedeirospinto/ocp-gitops-demo.git'

@@ -5,6 +5,8 @@
 repository:
   kind: nexus
   url: http://sonatype-nexus-service.nexus.svc.cluster.local:8081/repository/helm-charts/
+  username: admin
+  password: admin123
 
 charts:
   - name: deployment

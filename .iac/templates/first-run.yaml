@@ -1,0 +1,22 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: helm-chart-pipeline-rx8mcv
+  namespace: nexus
+spec:
+  params:
+    - name: GIT_REVISION
+      value: master
+    - name: GIT_REPO
+      value: 'https://github.com/caiomedeirospinto/ocp-gitops-demo.git'
+    - name: NEXUS_CREDENTIALS_SECRET
+      value: nexus-credentials
+  pipelineRef:
+    name: helm-chart-pipeline
+  serviceAccountName: pipeline
+  timeout: 1h0m0s
+  workspaces:
+    - name: workspace
+      persistentVolumeClaim:
+        claimName: pvc-helm-chart-pipeline
+status: {}
