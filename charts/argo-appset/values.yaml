@@ -54,6 +54,11 @@ apps:
       preEnvs: *preEnvs
       project: yaml-online
     team: product-team
+    ignoreDifferences:
+      - group: route.openshift.io
+        kind: Route
+        jsonPointers:
+          - /spec/host
   # - name: yaml-online-db
   #   enabled: true
   #   repository: https://github.com/caiomedeirospinto/yaml-online-db.git
