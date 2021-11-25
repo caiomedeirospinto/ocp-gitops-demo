@@ -1,0 +1,66 @@
+# Default values for pipelines.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+environments: &environments
+  - name: dev
+    kind: ci
+    ref:
+      value: develop
+      kind: heads
+    event: push
+  - name: staging
+    kind: cd
+    ref:
+      value: master
+      kind: heads
+    event: pull_request
+  - name: staging
+    kind: cd
+    ref:
+      value: master
+      kind: heads
+    event: push
+  - name: prod
+    kind: cd
+    ref:
+      value: ^v.+
+      kind: tags
+    event: push
+
+apps:
+  - name: yaml-online
+    enabled: true
+    project: yaml-online
+    repository: https://github.com/caiomedeirospinto/yaml-online.git
+    runtime:
+      version: "1.8"
+      name: nginx
+    deployStrategy: serverless
+    environments: *environments
+  - name: yaml-ms-online-session
+    enabled: true
+    project: yaml-online
+    repository: https://github.com/caiomedeirospinto/yaml-ms-online-session.git
+    runtime:
+      version: "21.2"
+      name: quarkus
+    deployStrategy: serverless
+    environments: *environments
+  - name: yaml-ws-online-session
+    enabled: true
+    project: yaml-online
+    repository: https://github.com/caiomedeirospinto/yaml-ws-online-session.git
+    runtime:
+      version: "21.2"
+      name: quarkus
+    deployStrategy: deployment
+    environments: *environments
+
+resources: {}
+  # limits:
+  #   cpu: 500m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 250m
+  #   memory: 64Mi

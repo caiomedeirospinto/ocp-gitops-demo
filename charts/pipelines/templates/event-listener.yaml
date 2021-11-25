@@ -1,0 +1,65 @@
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: {{ include "pipelines.name" . }}-event-listener
+  labels:
+    {{- include "pipelines.labels" . | nindent 4 }}
+spec:
+  resources:
+    kubernetesResource:
+      spec:
+        template:
+          metadata:
+            creationTimestamp: null
+          spec:
+            containers:
+              - name: ''
+                resources:
+                  {{- toYaml .Values.resources | nindent 18 }}
+            serviceAccountName: {{ include "pipelines.name" . }}-triggers-sa
+  serviceAccountName: {{ include "pipelines.name" . }}-triggers-sa
+  triggers:
+    {{- range $app := .Values.apps }}
+    {{- if $app.enabled }}
+    {{- range $environment := $app.environments }}
+    - name: {{ $app.name }}-{{ $environment.name }}
+      bindings:
+        {{- if eq "tags" $environment.ref.kind }}
+        - ref: sbpay-github-push-tag
+        {{- else }}
+        {{- if eq "pull_request" $environment.event }}
+        - ref: sbpay-github-pullreq
+        {{- else }}
+        - ref: sbpay-github-push
+        {{- end }}
+        {{- end }}
+          kind: ClusterTriggerBinding
+      interceptors:
+        - github:
+            eventTypes:
+              - {{ $environment.event }}
+        - cel:
+            filter: "body.repository.name == \"{{ $app.name }}\""
+        {{- if ne "pull_request" $environment.event }}
+            overlays:
+              - key: "ref_kind"
+                expression: 'body.ref.split("/")[1]'
+              - key: "ref_value"
+                expression: 'body.ref.split("/")[2]'
+        - cel:
+            filter: "extensions.ref_kind == \"{{ $environment.ref.kind }}\""
+        - cel:
+            filter: "extensions.ref_value.matches(\"{{ $environment.ref.value }}\")"
+        {{- else }}
+        - cel:
+            filter: "body.pull_request.base.ref == \"master\""
+        - cel:
+            filter: "body.pull_request.merged == true"
+        {{- end }}
+      template:
+        ref: {{ $app.name }}-{{ $environment.name }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+status: {}

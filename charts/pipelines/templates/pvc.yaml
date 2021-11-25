@@ -1,0 +1,23 @@
+{{- range $app := .Values.apps }}
+{{- if $app.enabled }}
+{{- range $environment := $app.environments }}
+{{- if eq "ci" $environment.kind }}
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: pvc-ci-{{ $app.name }}
+  namespace: {{ $app.project }}-{{ $environment.name }}
+  labels:
+    {{- include "pipelines.labels" $ | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ default "1Gi" $environment.volumeSize }}
+status: {}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,54 @@
+{{- range $app := .Values.apps }}
+{{- if $app.enabled }}
+{{- range $environment := $app.environments }}
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: {{ $app.name }}-{{ $environment.name }}
+  labels:
+    {{- include "pipelines.labels" $ | nindent 4 }}
+spec:
+  params:
+    {{- if eq "pull_request" $environment.event }}
+    - name: pullreq-sha
+    {{- else }}
+    - name: git-revision
+    - name: git-repo-url
+    {{- end }}
+    {{- if eq "tags" $environment.ref.kind }}
+    - name: git-tag
+    {{- end }}
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: {{ $app.name }}-{{ $environment.kind }}-run-
+        namespace: {{ $app.project }}-{{ $environment.name }}
+      spec:
+        params:
+          {{- if eq "pull_request" $environment.event }}
+          - name: GIT_REVISION
+            value: $(tt.params.pullreq-sha)
+          {{- else }}
+          - name: GIT_REPO
+            value: $(tt.params.git-repo-url)
+          - name: GIT_REVISION
+            value: $(tt.params.git-revision)
+          {{- end }}
+          {{- if eq "tags" $environment.ref.kind }}
+          - name: RELEASE_VERSION
+            value: $(tt.params.git-tag)
+          {{- end }}
+        pipelineRef:
+          name: {{ default $app.name $environment.pipelineName }}
+        timeout: 1h0m0s
+        {{- if eq "ci" $environment.kind }}
+        workspaces:
+          - name: workspace
+            persistentVolumeClaim:
+              claimName: pvc-ci-{{ $app.name }}
+        {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

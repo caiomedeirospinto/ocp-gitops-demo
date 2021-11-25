@@ -1,0 +1,125 @@
+{{- $env := include "ci-cd.environment" . }}
+{{- if ne "dev" $env }}
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  annotations:
+    app.openshift.io/vcs-uri: {{ .Values.repository.url }}
+    app.openshift.io/vcs-ref: {{ .Values.repository.ref }}
+  name: {{ include "ci-cd.name" . }}
+  labels:
+    {{- include "ci-cd.labels" . | nindent 4 }}
+spec:
+  finally:
+    - name: notify-succeeded
+      params:
+        - name: token-secret
+          value: token-secret
+        - name: channel
+          value: pipelines-{{ .Values.teamName }}
+        - name: message
+          value: Pipeline ejecutado correctamente = {{ include "ci-cd.name" . }}
+      taskRef:
+        kind: ClusterTask
+        name: send-to-channel-slack
+      when:
+        - input: $(tasks.set-traffic.status)
+          operator: in
+          values:
+            - Succeeded
+    - name: notify-any-failure
+      params:
+        - name: token-secret
+          value: token-secret
+        - name: channel
+          value: pipelines-{{ .Values.teamName }}
+        - name: message
+          value: Error en ejecución de pipelines = {{ include "ci-cd.name" . }}
+      taskRef:
+        kind: ClusterTask
+        name: send-to-channel-slack
+      when:
+        - input: $(tasks.set-traffic.status)
+          operator: in
+          values:
+            - Failed
+            - None
+  params:
+    - default: {{ include "ci-cd.name" . }}
+      name: APP_NAME
+      type: string
+    - default: {{ .Values.repository.ref }}
+      name: GIT_REVISION
+      type: string
+    {{- if eq "prod" $env }}
+    - name: RELEASE_VERSION
+      type: string
+    {{- end }}
+  tasks:
+    - name: sync-infra
+      params:
+        - name: application-name
+          value: $(params.APP_NAME)-{{ $env }}
+        {{- if eq "prod" $env }}
+        - name: revision
+          value: $(params.RELEASE_VERSION)
+        {{- else }}
+        - name: revision
+          value: $(params.GIT_REVISION)
+        {{- end }}
+      taskRef:
+        kind: ClusterTask
+        name: argocd-task-sync-and-wait
+    - name: tag-image
+      params:
+        - name: ARGS
+          value:
+            - tag
+            {{- if eq "staging" $env }}
+            - "{{ .Release.Namespace | replace "staging" "dev" }}/$(params.APP_NAME):develop"
+            - "{{ .Release.Namespace }}/$(params.APP_NAME):staging"
+            {{- else }}
+            - "{{ .Release.Namespace | replace "prod" "staging" }}/$(params.APP_NAME):staging"
+            - "{{ .Release.Namespace }}/$(params.APP_NAME):$(params.RELEASE_VERSION)"
+            {{- end }}
+      runAfter:
+        - sync-infra
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: deploy-change
+      params:
+        - name: ARGS
+          value:
+            - service
+            - update
+            - $(params.APP_NAME)
+            - '--revision-name'
+            - "$(params.APP_NAME)-$(params.GIT_REVISION)"
+            {{- if eq "staging" $env }}
+            - '--image=image-registry.openshift-image-registry.svc:5000/{{ .Release.Namespace }}/$(params.APP_NAME):staging'
+            {{- else }}
+            - '--image=image-registry.openshift-image-registry.svc:5000/{{ .Release.Namespace }}/$(params.APP_NAME):$(params.RELEASE_VERSION)'
+            {{- end }}
+            - '--annotation=app.openshift.io/vcs-ref=$(params.GIT_REVISION)'
+      runAfter:
+        - tag-image
+      taskRef:
+        kind: ClusterTask
+        name: kn
+    - name: set-traffic
+      params:
+        - name: ARGS
+          value:
+            - service
+            - update
+            - $(params.APP_NAME)
+            - '--traffic' 
+            - "$(params.APP_NAME)-$(params.GIT_REVISION)=100"
+      runAfter:
+        - deploy-change
+      taskRef:
+        kind: ClusterTask
+        name: kn
+{{- end }}

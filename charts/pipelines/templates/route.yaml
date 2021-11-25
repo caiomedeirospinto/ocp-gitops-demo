@@ -1,0 +1,15 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: {{ include "pipelines.name" . }}-event-listener
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "pipelines.labels" . | nindent 4 }}
+spec:
+  path: /
+  to:
+    kind: Service
+    name: el-{{ include "pipelines.name" . }}-event-listener
+  port:
+    targetPort: http-listener

@@ -1,0 +1,21 @@
+{{- $env := include "ci-cd.environment" . }}
+{{- if ne "dev" $env }}
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: pipeline-sa-view
+  {{- if eq "staging" $env }}
+  namespace: {{ .Release.Namespace | replace "staging" "dev" }}
+  {{- else }}
+  namespace: {{ .Release.Namespace | replace "prod" "staging" }}
+  {{- end }} 
+subjects:
+  - kind: ServiceAccount
+    name: pipeline
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+{{- end }}

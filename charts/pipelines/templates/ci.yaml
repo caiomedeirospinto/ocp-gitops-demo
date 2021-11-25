@@ -1,0 +1,154 @@
+{{- range $app := .Values.apps }}
+{{- if $app.enabled }}
+{{- range $environment := $app.environments }}
+{{- if eq "dev" $environment.name }}
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  annotations:
+    app.openshift.io/vcs-uri: {{ $app.repository }}
+  name: {{ $app.name }}
+  namespace: {{ $app.project }}-{{ $environment.name }}
+  labels:
+    app: {{ $app.name }}
+    app.kubernetes.io/component: {{ $app.name }}
+    app.kubernetes.io/instance: {{ $app.name }}
+    app.kubernetes.io/name: {{ $app.name }}
+    app.openshift.io/runtime: {{ $app.runtime.name }}
+    app.openshift.io/runtime-version: {{ $app.runtime.version | quote }}
+    pipeline.openshift.io/runtime: {{ $app.runtime.name }}
+    pipeline.openshift.io/type: {{ $app.deployStrategy }}
+    {{- include "ci-cd.labels" . | nindent 4 }}
+spec:
+  params:
+    - default: {{ $app.name }}
+      name: APP_NAME
+      type: string
+    - default: {{ $app.repository }}
+      name: GIT_REPO
+      type: string
+    - default: develop
+      name: GIT_REVISION
+      type: string
+    - default: >-
+        image-registry.openshift-image-registry.svc:5000/{{ $app.project }}-{{ $environment.name }}/{{ $app.name }}
+      name: IMAGE_NAME
+      type: string
+    - default: .
+      name: PATH_CONTEXT
+      type: string
+    - default: {{ $app.runtime.version }}
+      name: VERSION
+      type: string
+  tasks:
+    - name: fetch-repository
+      params:
+        - name: url
+          value: $(params.GIT_REPO)
+        - name: revision
+          value: $(params.GIT_REVISION)
+        - name: deleteExisting
+          value: 'true'
+      runAfter:
+        - sync-infra
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: workspace
+    - name: build-image
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_NAME)
+        - name: TLSVERIFY
+          value: 'false'
+        {{- if eq "dockerfile" .Values.strategy }}
+        - name: CONTEXT
+        {{- else }}
+        - name: PATH_CONTEXT
+        {{- end }}
+          value: $(params.PATH_CONTEXT)
+        {{- if eq "s2i" .Values.strategy }}
+        - name: VERSION
+          value: $(params.VERSION)
+        {{- if .Values.runtime.image }}
+        - name: S2I-RUNTIME
+          value: {{ .Values.runtime.image }}
+        {{- end }}
+        {{- if .Values.maven.argsAppend }}
+        - name: MAVEN_ARGS_APPEND
+          value: {{ .Values.maven.argsAppend }}
+        {{- end }}
+        {{- if .Values.maven.mirror }}
+        - name: MAVEN_MIRROR_URL
+          value: {{ .Values.maven.mirror }}
+        {{- end }}
+        {{- end }}
+      runAfter:
+        - fetch-repository
+      taskRef:
+        kind: ClusterTask
+        {{- if eq "dockerfile" .Values.strategy }}
+        name: buildah
+        {{- else }}
+        name: s2i-{{ .Values.runtime.name }}
+        {{- end }}
+      workspaces:
+        - name: source
+          workspace: workspace
+    - name: tag-image
+      params:
+        - name: ARGS
+          value:
+            - tag
+            - "{{ .Release.Namespace }}/$(params.APP_NAME):latest"
+            - "{{ .Release.Namespace }}/$(params.APP_NAME):develop"
+      runAfter:
+        - build-image
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: sync-infra
+      params:
+        - name: application-name
+          value: $(params.APP_NAME)-{{ $env }}
+        - name: revision
+          value: $(params.GIT_REVISION)
+      taskRef:
+        kind: ClusterTask
+        name: argocd-task-sync-and-wait
+    - name: deploy-change
+      params:
+        - name: ARGS
+          value:
+            - service
+            - update
+            - $(params.APP_NAME)
+            - '--revision-name'
+            - "$(params.APP_NAME)-$(params.GIT_REVISION)"
+            - '--image=$(params.IMAGE_NAME):develop'
+            - '--annotation=app.openshift.io/vcs-ref=$(params.GIT_REVISION)'
+      runAfter:
+        - tag-image
+      taskRef:
+        kind: ClusterTask
+        name: kn
+    - name: set-traffic
+      params:
+        - name: ARGS
+          value:
+            - service
+            - update
+            - $(params.APP_NAME)
+            - '--traffic'
+            - "$(params.APP_NAME)-$(params.GIT_REVISION)=100"
+      runAfter:
+        - deploy-change
+      taskRef:
+        kind: ClusterTask
+        name: kn
+  workspaces:
+    - name: workspace
+{{- end }}

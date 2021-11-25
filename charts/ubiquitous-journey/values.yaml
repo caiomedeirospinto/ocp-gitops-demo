@@ -50,3 +50,11 @@ applications:
     source_ref: master
     sync_policy: *sync_policy_true
     no_helm: true
+  # Teams
+  - name: teams
+    destination: openshift-gitops
+    enabled: true
+    source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
+    source_path: charts/argo-project
+    source_ref: master
+    sync_policy: *sync_policy_tru

@@ -1,0 +1,49 @@
+apiVersion: tekton.dev/v1beta1
+kind: ClusterTask
+metadata:
+  annotations:
+    tekton.dev/categories: Deployment
+    tekton.dev/displayName: argocd
+    tekton.dev/pipelines.minVersion: 0.12.1
+    tekton.dev/tags: deploy
+  name: argocd-task-sync-and-wait
+  labels:
+    app.kubernetes.io/version: '0.1'
+spec:
+  description: >-
+    This task syncs (deploys) an Argo CD application and waits for it to be
+    healthy. To do so, it requires the address of the Argo CD server and some
+    form of authentication either a username/password or an authentication
+    token.
+  params:
+    - description: name of the application to sync
+      name: application-name
+      type: string
+    - default: HEAD
+      description: the revision to sync to
+      name: revision
+      type: string
+    - default: '--'
+      name: flags
+      type: string
+    - default: v2.0.5
+      name: argocd-version
+      type: string
+  stepTemplate:
+    envFrom:
+      - secretRef:
+          name: argocd-env-secret
+    name: ''
+    resources: {}
+  steps:
+    - image: 'docker.io/argoproj/argocd:$(params.argocd-version)'
+      name: login
+      resources: {}
+      script: >
+        if [ -z "$ARGOCD_AUTH_TOKEN" ]; then
+          yes | argocd login "$ARGOCD_SERVER" --username="$ARGOCD_USERNAME" --password="$ARGOCD_PASSWORD" --insecure;
+        fi
+
+        argocd --insecure app sync "$(params.application-name)" --revision "$(params.revision)" "$(params.flags)"
+
+        argocd --insecure app wait "$(params.application-name)" --health "$(params.flags)"
