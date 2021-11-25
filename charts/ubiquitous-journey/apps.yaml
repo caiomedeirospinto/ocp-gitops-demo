@@ -28,3 +28,10 @@ applications:
     source_path: .iac/
     source_ref: master
     sync_policy: *sync_policy_true
+  - name: pipelines
+    destination: openshift-gitops
+    enabled: true
+    source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
+    source_path: charts/pipelines
+    source_ref: master
+    sync_policy: *sync_policy_true
