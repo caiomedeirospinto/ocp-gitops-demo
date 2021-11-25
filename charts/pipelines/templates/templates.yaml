@@ -21,6 +21,7 @@ spec:
       metadata:
         annotations: {}
         generateName: {{ $app.name }}-{{ $env.kind }}-
+        namespace: {{ $app.project }}-{{ $env.name }}
         labels:
           tekton.dev/pipeline: {{ $app.name }}-{{ $env.kind }}
       spec:
