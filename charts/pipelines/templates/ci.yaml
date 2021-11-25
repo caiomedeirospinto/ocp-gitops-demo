@@ -1,154 +1,287 @@
-{{- range $app := .Values.apps }}
-{{- if $app.enabled }}
-{{- range $environment := $app.environments }}
-{{- if eq "dev" $environment.name }}
+{{- range $app := .Values.applications }}
+{{- range $env := $app.environments }}
+{{- if and (eq "ci" $env.kind) ($app.enabled) }}
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  annotations:
-    app.openshift.io/vcs-uri: {{ $app.repository }}
-  name: {{ $app.name }}
-  namespace: {{ $app.project }}-{{ $environment.name }}
-  labels:
-    app: {{ $app.name }}
-    app.kubernetes.io/component: {{ $app.name }}
-    app.kubernetes.io/instance: {{ $app.name }}
-    app.kubernetes.io/name: {{ $app.name }}
-    app.openshift.io/runtime: {{ $app.runtime.name }}
-    app.openshift.io/runtime-version: {{ $app.runtime.version | quote }}
-    pipeline.openshift.io/runtime: {{ $app.runtime.name }}
-    pipeline.openshift.io/type: {{ $app.deployStrategy }}
-    {{- include "ci-cd.labels" . | nindent 4 }}
+  name: {{ $app.name }}-{{ $env.kind }}
+  namespace: {{ $app.project }}-{{ $env.name }}
 spec:
   params:
-    - default: {{ $app.name }}
-      name: APP_NAME
+    - name: git-url
       type: string
-    - default: {{ $app.repository }}
-      name: GIT_REPO
+    - name: git-revision
       type: string
-    - default: develop
-      name: GIT_REVISION
-      type: string
-    - default: >-
-        image-registry.openshift-image-registry.svc:5000/{{ $app.project }}-{{ $environment.name }}/{{ $app.name }}
-      name: IMAGE_NAME
-      type: string
-    - default: .
-      name: PATH_CONTEXT
-      type: string
-    - default: {{ $app.runtime.version }}
-      name: VERSION
+    - name: app-name
       type: string
   tasks:
-    - name: fetch-repository
+    - name: git-clone
       params:
         - name: url
-          value: $(params.GIT_REPO)
+          value: $(params.git-url)
         - name: revision
-          value: $(params.GIT_REVISION)
-        - name: deleteExisting
-          value: 'true'
-      runAfter:
-        - sync-infra
+          value: $(params.git-revision)
       taskRef:
         kind: ClusterTask
-        name: git-clone
+        name: git-clone-short-commit
       workspaces:
         - name: output
-          workspace: workspace
-    - name: build-image
+          workspace: source
+    {{- if eq "nodejs" $app.runtime.name }}
+    - name: install-dep
       params:
-        - name: IMAGE
-          value: $(params.IMAGE_NAME)
-        - name: TLSVERIFY
-          value: 'false'
-        {{- if eq "dockerfile" .Values.strategy }}
-        - name: CONTEXT
-        {{- else }}
-        - name: PATH_CONTEXT
-        {{- end }}
-          value: $(params.PATH_CONTEXT)
-        {{- if eq "s2i" .Values.strategy }}
-        - name: VERSION
-          value: $(params.VERSION)
-        {{- if .Values.runtime.image }}
-        - name: S2I-RUNTIME
-          value: {{ .Values.runtime.image }}
-        {{- end }}
-        {{- if .Values.maven.argsAppend }}
-        - name: MAVEN_ARGS_APPEND
-          value: {{ .Values.maven.argsAppend }}
-        {{- end }}
-        {{- if .Values.maven.mirror }}
-        - name: MAVEN_MIRROR_URL
-          value: {{ .Values.maven.mirror }}
-        {{- end }}
-        {{- end }}
+        - name: GOALS
+          value:
+            - install
+        - name: NPM_MIRROR_URL
+          value: >-
+            {{ $.Values.artifactRepository.url }}{{ $.Values.artifactRepository.repos.npm }}
       runAfter:
-        - fetch-repository
+        - git-clone
       taskRef:
         kind: ClusterTask
-        {{- if eq "dockerfile" .Values.strategy }}
-        name: buildah
+        name: nodejs
+      workspaces:
+        - name: source
+          workspace: source
+    {{- if has "angular" $app.runtime.libraries }}
+    - name: build-code
+      params:
+        - name: GOALS
+          value:
+            - run
+            - build
+      runAfter:
+        {{- if not $app.disable_code_scan }}
+        - code-scan
         {{- else }}
-        name: s2i-{{ .Values.runtime.name }}
+        {{- if not $app.disable_test }}
+        - unit-test
+        {{- else }}
+        {{- if has "angular" $app.runtime.libraries }}
+        - install-dep
+        {{- else }}
+        - git-clone
+        {{- end }}
+        {{- end }}
+        {{- end }}
+      taskRef:
+        kind: ClusterTask
+        name: nodejs
+      workspaces:
+        - name: source
+          workspace: source
+    {{- end }}
+    {{- end }}
+    - name: unit-test
+      params:
+        - name: GOALS
+          value:
+          {{- if eq "nodejs" $app.runtime.name }}
+            - run
+            - test
+            {{- if has "angular" $app.runtime.libraries }}
+            - '--'
+            - '--no-watch'
+            - '--no-progress'
+            - '--browsers=ChromeHeadlessCI'
+            {{- end }}
+        - name: COMMAND
+          value: /usr/local/bin/npm
+        - name: NODEJS_IMAGE
+          value: circleci/node:fermium-browsers
+          {{- else }}
+            - test
+          {{- end }}
+        {{- if eq "java" $app.runtime.name }}
+        - name: MAVEN_MIRROR_URL
+          value: >-
+            {{ $.Values.artifactRepository.url }}{{ $.Values.artifactRepository.repos.maven }}
+        {{- end }}
+      runAfter:
+        {{- if eq "nodejs" $app.runtime.name }}
+        - install-dep
+        {{- else }}
+        - git-clone
+        {{- end }}
+      taskRef:
+        kind: ClusterTask
+        {{- if eq "nodejs" $app.runtime.name }}
+        name: nodejs
+        {{- else }}
+        name: maven
         {{- end }}
       workspaces:
         - name: source
-          workspace: workspace
+          workspace: source
+        {{- if eq "java" $app.runtime.name }}
+        - name: maven-settings
+          workspace: maven-settings
+        {{- end }}
+    - name: build
+      params:
+        {{- if eq "nodejs" $app.runtime.name }}
+        - name: VERSION
+          value: {{ $app.runtime.version | quote }}
+        {{- end }}
+        - name: PATH_CONTEXT
+          {{- if has "angular" $app.runtime.libraries }}
+          value: dist/{{ $app.name }}
+          {{- else }}
+          value: .
+          {{- end }}
+        - name: IMAGE
+          value: >-
+            image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/$(params.app-name)
+        {{- if eq "java" $app.runtime.name }}
+        - name: MAVEN_MIRROR_URL
+          value: >-
+            {{ $.Values.artifactRepository.url }}{{ $.Values.artifactRepository.repos.maven }}
+        {{- end }}
+      runAfter:
+        {{- if has "angular" $app.runtime.libraries }}
+        - build-code
+        {{- else }}
+        {{- if not $app.disable_code_scan }}
+        - code-scan
+        {{- else }}
+        {{- if not $app.disable_test }}
+        - unit-test
+        {{- else }}
+        - git-clone
+        {{- end }}
+        {{- end }}
+        {{- end }}
+      taskRef:
+        kind: ClusterTask
+        {{- if eq "nodejs" $app.runtime.name }}
+        {{- if has "angular" $app.runtime.libraries }}
+        name: s2i-nginx
+        {{- else }}
+        name: s2i-nodejs
+        {{- end }}
+        {{- else }}
+        {{- if has "quarkus" $app.runtime.libraries }}
+        name: s2i-quarkus
+        {{- else if has "fuse-java" $app.runtime.libraries }}
+        name: s2i-fuse-java
+        {{- else }}
+        name: s2i-java-{{ $app.runtime.version }}
+        {{- end }}
+        {{- end }}
+      workspaces:
+        - name: source
+          workspace: source
     - name: tag-image
       params:
-        - name: ARGS
-          value:
-            - tag
-            - "{{ .Release.Namespace }}/$(params.APP_NAME):latest"
-            - "{{ .Release.Namespace }}/$(params.APP_NAME):develop"
+        - name: SCRIPT
+          value: >-
+            oc tag $(context.pipelineRun.namespace)/$(params.app-name):latest $(context.pipelineRun.namespace)/$(params.app-name):$(tasks.git-clone.results.commit)
       runAfter:
-        - build-image
+        - move-image
       taskRef:
         kind: ClusterTask
         name: openshift-client
     - name: sync-infra
       params:
-        - name: application-name
-          value: $(params.APP_NAME)-{{ $env }}
         - name: revision
-          value: $(params.GIT_REVISION)
+          value: $(tasks.git-clone.results.commit)
+        - name: argocd-version
+          value: v2.0.5
+        - name: application-name
+          value: $(params.app-name)-{{ $env.name }}
+        - name: flags-sync
+          value: '--prune'
+      {{- if not $app.skip_build }}
+      runAfter:
+        - tag-image
+      {{- end }}
       taskRef:
         kind: ClusterTask
         name: argocd-task-sync-and-wait
-    - name: deploy-change
+    {{- if $app.serverless }}
+    - name: deploy
       params:
         - name: ARGS
           value:
             - service
             - update
-            - $(params.APP_NAME)
-            - '--revision-name'
-            - "$(params.APP_NAME)-$(params.GIT_REVISION)"
-            - '--image=$(params.IMAGE_NAME):develop'
-            - '--annotation=app.openshift.io/vcs-ref=$(params.GIT_REVISION)'
+            - $(params.app-name)
+            - '--revision-name=$(tasks.git-clone.results.commit)'
+            - >-
+              --image=image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/$(params.app-name):$(tasks.git-clone.results.commit)
+            - '--annotation=app.openshift.io/vcs-ref=$(params.git-revision)'
+            - '--traffic=100'
+            - '-n={{ $app.project }}-{{ $env.name }}'
       runAfter:
-        - tag-image
+        - sync-infra
       taskRef:
         kind: ClusterTask
         name: kn
-    - name: set-traffic
+    {{- else }}
+    - name: update-config
       params:
-        - name: ARGS
-          value:
-            - service
-            - update
-            - $(params.APP_NAME)
-            - '--traffic'
-            - "$(params.APP_NAME)-$(params.GIT_REVISION)=100"
+        - name: SCRIPT
+          value: >-
+            oc patch dc $(params.app-name) -p '{"spec":{"template":{"spec":{"containers":[{"name":"$(params.app-name)","image":"image-registry.openshift-image-registry.svc:5000/{{ $app.project }}-{{ $env.name }}/$(params.app-name):$(tasks.git-clone.results.commit)"}]}}}}' -n={{ $app.project }}-{{ $env.name }}
       runAfter:
-        - deploy-change
+        - sync-infra
       taskRef:
         kind: ClusterTask
-        name: kn
+        name: openshift-client
+    - name: start-deploy
+      params:
+        - name: SCRIPT
+          value: >-
+            oc rollout latest dc/$(params.app-name) -n={{ $app.project }}-{{ $env.name }}
+      runAfter:
+        - update-config
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    - name: deploy
+      params:
+        - name: SCRIPT
+          value: >-
+            oc rollout status dc/$(params.app-name) --watch=true -n={{ $app.project }}-{{ $env.name }}
+      runAfter:
+        - start-deploy
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+    {{- end }}
+    - name: set-revision
+      params:
+        - name: SCRIPT
+          value: >-
+            oc annotate {{ if $app.serverless }}service.serving.knative.dev{{ else }}dc{{ end }} $(params.app-name) app.openshift.io/vcs-ref=$(params.git-revision) app.openshift.io/vcs-uri=$(params.git-url) -n={{ $app.project }}-{{ $env.name }} --overwrite
+      runAfter:
+        - deploy
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+  finally:
+    - name: remove-tag
+      params:
+        - name: SCRIPT
+          value: >-
+            oc tag -d $(context.pipelineRun.namespace)/$(params.app-name):$(tasks.git-clone.results.commit)
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+      when:
+        - input: $(tasks.tag-image.status)
+          operator: in
+          values: ["Completed", "Succeeded"]
+        - input: $(tasks.set-revision.status)
+          operator: in
+          values: ["Failed"]
   workspaces:
-    - name: workspace
+    - name: source
+    {{- if eq "java" $app.runtime.name }}
+    - name: maven-settings
+    {{- end }}
+{{- end }}
+{{- end }}
 {{- end }}

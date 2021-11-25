@@ -41,6 +41,15 @@ applications:
     source_ref: master
     sync_policy: *sync_policy_true
     no_helm: true
+  # Tekton Addons
+  - name: tekton-addons
+    enabled: true
+    destination: default
+    source: https://github.com/caiomedeirospinto/ocp-gitops-demo.git
+    source_path: operators/serverless/tasks
+    source_ref: master
+    sync_policy: *sync_policy_true
+    no_helm: true
   # Serverless
   - name: serverless
     enabled: true

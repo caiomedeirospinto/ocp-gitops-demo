@@ -1,23 +1,18 @@
-{{- range $app := .Values.apps }}
-{{- if $app.enabled }}
-{{- range $environment := $app.environments }}
-{{- if eq "ci" $environment.kind }}
+{{- range $app := .Values.applications }}
+{{- range $env := $app.environments }}
+{{- if and (eq "ci" $env.kind) ($app.enabled) (not $app.skip_build) }}
 ---
 kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
-  name: pvc-ci-{{ $app.name }}
-  namespace: {{ $app.project }}-{{ $environment.name }}
-  labels:
-    {{- include "pipelines.labels" $ | nindent 4 }}
+  name: {{ $app.name }}-{{ $env.kind }}
 spec:
   accessModes:
     - ReadWriteOnce
   resources:
     requests:
-      storage: {{ default "1Gi" $environment.volumeSize }}
-status: {}
-{{- end }}
+      storage: {{ $env.pvc }}
+  volumeMode: Filesystem
 {{- end }}
 {{- end }}
 {{- end }}

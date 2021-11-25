@@ -2,24 +2,24 @@ apiVersion: tekton.dev/v1beta1
 kind: ClusterTask
 metadata:
   annotations:
-    tekton.dev/displayName: s2i quarkus
+    tekton.dev/displayName: s2i nginx
     tekton.dev/pipelines.minVersion: '0.19'
-    tekton.dev/tags: 's2i, quarkus, workspace'
-  name: s2i-quarkus
+    tekton.dev/tags: 's2i, nginx, workspace'
+  name: s2i-nginx
   labels:
     app.kubernetes.io/version: '0.1'
     operator.tekton.dev/provider-type: redhat
 spec:
   description: >-
-    s2i-quarkus task clones a Git repository and builds and pushes a container
-    image using S2I and a quarkus native builder image.
+    s2i-nginx task clones a Git repository and builds and pushes a container
+    image using S2I and a nginx builder image.
   params:
-    - default: "20.3"
-      description: The tag of mandrel-20-rhel8 imagestream for mandrel-20-rhel8 version
+    - default: 1.18-ubi7
+      description: The tag of nginx imagestream for nginx version
       name: VERSION
       type: string
     - default: .
-      description: The location of the path to run s2i from
+      description: The location of the path to run s2i from.
       name: PATH_CONTEXT
       type: string
     - default: 'false'
@@ -28,58 +28,46 @@ spec:
         registry)
       name: TLSVERIFY
       type: string
-    - default: ''
-      description: Additional Maven arguments
-      name: MAVEN_ARGS_APPEND
-      type: string
-    - default: 'false'
-      description: Remove the Maven repository after the artifact is built
-      name: MAVEN_CLEAR_REPO
-      type: string
-    - default: ''
-      description: The base URL of a mirror used for retrieving artifacts
-      name: MAVEN_MIRROR_URL
-      type: string
     - description: Location of the repo where image has to be pushed
       name: IMAGE
       type: string
+    - default: './nginx.conf'
+      description: Nginx config file path inside source
+      name: CONFIG_FILE_PATH
+      type: string
+    - default: >-
+        registry.redhat.io/rhel8/buildah@sha256:99cae35f40c7ec050fed3765b2b27e0b8bbea2aa2da7c16408e2ca13c60ff8ee
+      description: The location of the buildah builder image.
+      name: BUILDER_IMAGE
+      type: string
+  results:
+    - description: Digest of the image just built.
+      name: IMAGE_DIGEST
   steps:
     - args:
         - |-
-          echo "MAVEN_CLEAR_REPO=$(params.MAVEN_CLEAR_REPO)" > env-file
-
-          [[ '$(params.MAVEN_ARGS_APPEND)' != "" ]] &&
-            echo "MAVEN_ARGS_APPEND=$(params.MAVEN_ARGS_APPEND)" >> env-file
-
-          [[ '$(params.MAVEN_MIRROR_URL)' != "" ]] &&
-            echo "MAVEN_MIRROR_URL=$(params.MAVEN_MIRROR_URL)" >> env-file
-
-          echo "Generated Env file"
+          echo "CONFIG FILE PATH = $(params.CONFIG_FILE_PATH)"
+          [[ '$(params.CONFIG_FILE_PATH)' != "" ]] &&
+            cp '$(params.CONFIG_FILE_PATH)' '$(params.PATH_CONTEXT)/'
           echo "------------------------------"
-          cat env-file
+          ls -la '$(params.PATH_CONTEXT)/'
           echo "------------------------------"
       command:
         - /bin/sh
         - '-c'
       image: >-
         registry.redhat.io/ocp-tools-4-tech-preview/source-to-image-rhel8@sha256:637c15600359cb45bc01445b5e811b6240ca239f0ebfe406b50146e34f68f631
-      name: gen-env-file
+      name: config-file
       resources: {}
-      volumeMounts:
-        - mountPath: /env-params
-          name: envparams
-      workingDir: /env-params
+      workingDir: $(workspaces.source.path)
     - command:
         - s2i
         - build
         - $(params.PATH_CONTEXT)
-        - image-registry.openshift-image-registry.svc:5000/openshift/ubi-quarkus-native-s2i:$(params.VERSION)
-        - '--image-scripts-url'
-        - 'image:///usr/libexec/s2i'
+        - >-
+          image-registry.openshift-image-registry.svc:5000/openshift/nginx:$(params.VERSION)
         - '--as-dockerfile'
         - /gen-source/Dockerfile.gen
-        - '--environment-file'
-        - /env-params/env-file
       image: >-
         registry.redhat.io/ocp-tools-4-tech-preview/source-to-image-rhel8@sha256:637c15600359cb45bc01445b5e811b6240ca239f0ebfe406b50146e34f68f631
       name: generate
@@ -87,8 +75,6 @@ spec:
       volumeMounts:
         - mountPath: /gen-source
           name: gen-source
-        - mountPath: /env-params
-          name: envparams
       workingDir: $(workspaces.source.path)
     - command:
         - buildah
@@ -101,8 +87,7 @@ spec:
         - '-t'
         - $(params.IMAGE)
         - .
-      image: >-
-        registry.redhat.io/rhel8/buildah@sha256:99cae35f40c7ec050fed3765b2b27e0b8bbea2aa2da7c16408e2ca13c60ff8ee
+      image: $(params.BUILDER_IMAGE)
       name: build
       resources: {}
       volumeMounts:
@@ -118,20 +103,18 @@ spec:
         - '--tls-verify=$(params.TLSVERIFY)'
         - $(params.IMAGE)
         - 'docker://$(params.IMAGE)'
-      image: >-
-        registry.redhat.io/rhel8/buildah@sha256:99cae35f40c7ec050fed3765b2b27e0b8bbea2aa2da7c16408e2ca13c60ff8ee
+      image: $(params.BUILDER_IMAGE)
       name: push
       resources: {}
       volumeMounts:
         - mountPath: /var/lib/containers
           name: varlibcontainers
+      workingDir: $(workspaces.source.path)
   volumes:
     - emptyDir: {}
       name: varlibcontainers
     - emptyDir: {}
       name: gen-source
-    - emptyDir: {}
-      name: envparams
   workspaces:
     - mountPath: /workspace/source
       name: source

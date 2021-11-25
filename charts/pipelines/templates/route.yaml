@@ -1,15 +1,18 @@
 ---
-apiVersion: route.openshift.io/v1
 kind: Route
+apiVersion: route.openshift.io/v1
 metadata:
-  name: {{ include "pipelines.name" . }}-event-listener
-  namespace: {{ .Values.namespace }}
-  labels:
-    {{- include "pipelines.labels" . | nindent 4 }}
+  name: el-{{ .Values.teamName }}
 spec:
-  path: /
   to:
     kind: Service
-    name: el-{{ include "pipelines.name" . }}-event-listener
+    name: el-{{ .Values.teamName }}
+    weight: 100
   port:
     targetPort: http-listener
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+status:
+  ingress: []

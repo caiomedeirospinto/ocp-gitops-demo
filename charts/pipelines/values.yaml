@@ -1,66 +1,70 @@
 # Default values for pipelines.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+# Default values for cicd-with-tekton.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+teamName: product-team
+
+artifactRepository:
+  url: https://nexus-nexus.apps.cluster-g8s6c.g8s6c.sandbox758.opentlc.com/
+  repos:
+    maven: repository/maven-public/
+    npm: repository/labs-npm/
 
 environments: &environments
   - name: dev
     kind: ci
+    pvc: 1Gi
     ref:
-      value: develop
       kind: heads
-    event: push
+      name: develop
   - name: staging
     kind: cd
+    previuosEnv: dev
     ref:
-      value: master
       kind: heads
-    event: pull_request
-  - name: staging
-    kind: cd
-    ref:
-      value: master
-      kind: heads
-    event: push
+      name: master
   - name: prod
     kind: cd
+    previuosEnv: staging
     ref:
-      value: ^v.+
       kind: tags
-    event: push
+      name: ^v.+
 
-apps:
+applications:
   - name: yaml-online
     enabled: true
+    serverless: true
+    repo: https://github.com/caiomedeirospinto/yaml-online.git
     project: yaml-online
-    repository: https://github.com/caiomedeirospinto/yaml-online.git
     runtime:
-      version: "1.8"
-      name: nginx
-    deployStrategy: serverless
+      name: nodejs
+      version: "14"
+      libraries:
+        - angular
+        - nginx
     environments: *environments
   - name: yaml-ms-online-session
     enabled: true
+    serverless: true
+    repo: https://github.com/caiomedeirospinto/yaml-ms-online-session.git
     project: yaml-online
-    repository: https://github.com/caiomedeirospinto/yaml-ms-online-session.git
     runtime:
-      version: "21.2"
-      name: quarkus
-    deployStrategy: serverless
+      name: java
+      version: latest
+      libraries:
+        - quarkus
     environments: *environments
   - name: yaml-ws-online-session
     enabled: true
+    serverless: false
+    repo: https://github.com/caiomedeirospinto/yaml-ws-online-session.git
     project: yaml-online
-    repository: https://github.com/caiomedeirospinto/yaml-ws-online-session.git
     runtime:
-      version: "21.2"
-      name: quarkus
-    deployStrategy: deployment
+      name: java
+      version: latest
+      libraries:
+        - quarkus
     environments: *environments
-
-resources: {}
-  # limits:
-  #   cpu: 500m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 250m
-  #   memory: 64Mi
