@@ -53,18 +53,10 @@ spec:
             - run
             - build
       runAfter:
-        {{- if not $app.disable_code_scan }}
-        - code-scan
-        {{- else }}
-        {{- if not $app.disable_test }}
-        - unit-test
-        {{- else }}
         {{- if has "angular" $app.runtime.libraries }}
         - install-dep
         {{- else }}
         - git-clone
-        {{- end }}
-        {{- end }}
         {{- end }}
       taskRef:
         kind: ClusterTask
@@ -143,15 +135,7 @@ spec:
         {{- if has "angular" $app.runtime.libraries }}
         - build-code
         {{- else }}
-        {{- if not $app.disable_code_scan }}
-        - code-scan
-        {{- else }}
-        {{- if not $app.disable_test }}
         - unit-test
-        {{- else }}
-        - git-clone
-        {{- end }}
-        {{- end }}
         {{- end }}
       taskRef:
         kind: ClusterTask
@@ -193,10 +177,8 @@ spec:
           value: $(params.app-name)-{{ $env.name }}
         - name: flags-sync
           value: '--prune'
-      {{- if not $app.skip_build }}
       runAfter:
         - tag-image
-      {{- end }}
       taskRef:
         kind: ClusterTask
         name: argocd-task-sync-and-wait
