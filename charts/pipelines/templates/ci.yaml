@@ -163,7 +163,7 @@ spec:
           value: >-
             oc tag $(context.pipelineRun.namespace)/$(params.app-name):latest $(context.pipelineRun.namespace)/$(params.app-name):$(tasks.git-clone.results.commit)
       runAfter:
-        - move-image
+        - build
       taskRef:
         kind: ClusterTask
         name: openshift-client
