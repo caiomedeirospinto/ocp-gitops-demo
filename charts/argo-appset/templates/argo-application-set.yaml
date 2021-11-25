@@ -22,8 +22,6 @@ spec:
             url: {{ default "https://kubernetes.default.svc" $app.deploy.cluster | quote }}
             values:
               revision: {{ $app.deploy.version }}
-  syncPolicy:
-    skipPrune: false
   template:
     metadata:
       labels:
