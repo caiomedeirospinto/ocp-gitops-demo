@@ -175,7 +175,7 @@ spec:
           value: v2.0.5
         - name: application-name
           value: $(params.app-name)-{{ $env.name }}
-        - name: flags-sync
+        - name: flags
           value: '--prune'
       runAfter:
         - tag-image
