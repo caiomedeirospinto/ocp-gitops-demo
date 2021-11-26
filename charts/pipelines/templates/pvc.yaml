@@ -6,6 +6,7 @@ kind: PersistentVolumeClaim
 apiVersion: v1
 metadata:
   name: {{ $app.name }}-{{ $env.kind }}
+  namespace: {{ $app.project }}-{{ $env.name }}
 spec:
   accessModes:
     - ReadWriteOnce
