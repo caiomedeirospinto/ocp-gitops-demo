@@ -53,11 +53,7 @@ spec:
             - run
             - build
       runAfter:
-        {{- if has "angular" $app.runtime.libraries }}
-        - install-dep
-        {{- else }}
-        - git-clone
-        {{- end }}
+        - unit-test
       taskRef:
         kind: ClusterTask
         name: nodejs
